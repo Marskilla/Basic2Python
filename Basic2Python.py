@@ -76,79 +76,83 @@ def convert_basic_to_python(basic_line, line_number=None, original_line=None):
         if MODEDEBUG:
             print(f"\nProcessing INPUT line: '{basic_line}'")
         
-        # Special handling for line 70
-        if line_number == "70":
-            if MODEDEBUG:
-                print(f"Special handling for line 70: {basic_line}")
-            python_code = "ageN = int(input(\"What is your age : \"))"
-            if python_code:
-                comment = f"# {line_number} {basic_line}"
-                return f"{comment}\n{python_code}"
+        # Extract the part after INPUT
+        input_part = basic_line[5:].strip()
         
-        # Case 1: INPUT"prompt",var (without space after INPUT)
-        if '"' in basic_line and (',' in basic_line or ';' in basic_line):
+        # Case 1: INPUT"prompt",var (with prompt and variable)
+        if input_part.startswith('"'):
             if MODEDEBUG:
                 print("Processing INPUT with prompt and variable")
-            # Find the position of the first quote
-            quote_start = basic_line.find('"')
-            if quote_start != -1:
-                # Find the position of the second quote
-                quote_end = basic_line.find('"', quote_start + 1)
-                if quote_end != -1:
-                    prompt = basic_line[quote_start + 1:quote_end]
+            
+            # Find the position of the first and second quotes
+            quote_start = 0  # We know it starts with a quote
+            quote_end = input_part.find('"', 1)
+            
+            if quote_end != -1:
+                prompt = input_part[quote_start + 1:quote_end]
+                
+                # Find separator after the prompt (comma or semicolon)
+                rest = input_part[quote_end + 1:].strip()
+                separator = None
+                var = None
+                
+                if rest.startswith(','):
+                    separator = ','
+                    var = rest[1:].strip()
+                elif rest.startswith(';'):
+                    separator = ';'
+                    var = rest[1:].strip()
+                
+                if var:
+                    if MODEDEBUG:
+                        print(f"Found prompt: '{prompt}'")
+                        print(f"Found separator: '{separator}'")
+                        print(f"Found variable: '{var}'")
                     
-                    # Find the position of comma or semicolon
-                    sep_pos = -1
-                    for sep in [',', ';']:
-                        pos = basic_line.find(sep, quote_end)
-                        if pos != -1:
-                            sep_pos = pos
-                            break
-                    
-                    if sep_pos != -1:
-                        var = basic_line[sep_pos + 1:].strip()
-                        
-                        if MODEDEBUG:
-                            print(f"Found prompt: '{prompt}'")
-                            print(f"Found variable: '{var}'")
-                        
-                        # Process the variable
-                        if "$" in var:  # String variable
-                            var_name = var.replace("$", "S").strip()
+                    # Process the variable based on its type
+                    if "$" in var:  # String variable
+                        var_name = var.replace("$", "S").strip()
+                        if separator == ',':
                             python_code = f'{var_name} = input("{prompt}")'
-                        elif "%" in var:  # Numeric variable
-                            var_name = var.replace("%", "N").strip()
+                        else:  # separator == ';'
+                            python_code = f'print("{prompt}")\n{var_name} = input()'
+                    elif "%" in var:  # Integer variable
+                        var_name = var.replace("%", "N").strip()
+                        if separator == ',':
                             python_code = f'{var_name} = int(input("{prompt}"))'
-                        else:  # Real variable
-                            var_name = var.strip()
+                        else:  # separator == ';'
+                            python_code = f'print("{prompt}")\n{var_name} = int(input())'
+                    else:  # Real variable
+                        var_name = var.strip()
+                        if separator == ',':
                             python_code = f'{var_name} = float(input("{prompt}"))'
-                        
-                        if MODEDEBUG:
-                            print(f"Generated Python code: {python_code}")
-                        
-                        return f"# {line_number} {basic_line}\n{python_code}"
-        
+                        else:  # separator == ';'
+                            python_code = f'print("{prompt}")\n{var_name} = float(input())'
+            
         # Case 2: INPUT var (just a variable)
-        var = basic_line[5:].strip()
-        
-        if MODEDEBUG:
-            print(f"Simple input, var: '{var}'")
-        
-        # Process the variable
-        if "$" in var:  # String variable
-            var_name = var.replace("$", "S").strip()
-            python_code = f'{var_name} = input()'
-        elif "%" in var:  # Numeric variable
-            var_name = var.replace("%", "N").strip()
-            python_code = f'{var_name} = int(input())'
-        else:  # Real variable
-            var_name = var.strip()
-            python_code = f'{var_name} = float(input())'
+        else:
+            var = input_part
+            
+            if MODEDEBUG:
+                print(f"Simple input, var: '{var}'")
+            
+            # Process the variable based on its type
+            if "$" in var:  # String variable
+                var_name = var.replace("$", "S").strip()
+                python_code = f'{var_name} = input()'
+            elif "%" in var:  # Integer variable
+                var_name = var.replace("%", "N").strip()
+                python_code = f'{var_name} = int(input())'
+            else:  # Real variable
+                var_name = var.strip()
+                python_code = f'{var_name} = float(input())'
         
         if MODEDEBUG:
             print(f"Generated Python code: {python_code}")
         
-        return f"# {line_number} {basic_line}\n{python_code}"
+        if python_code:
+            comment = f"# {line_number} {basic_line}"
+            return f"{comment}\n{python_code}"
     
     # Convert variable assignments
     elif "=" in basic_line:
