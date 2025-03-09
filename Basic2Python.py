@@ -32,17 +32,10 @@ def convert_basic_to_python(basic_line, line_number=None, original_line=None):
     
     # Handle multiple instructions on one line (separated by :)
     if ":" in basic_line:
+        if MODEDEBUG:
+            print(f"\nHandling multiple instructions: {basic_line}")
         instructions = basic_line.split(":")
-        # Generate Python code for each instruction without adding extra newlines
-        result = []
-        for instr in instructions:
-            stripped_instr = instr.strip()
-            if stripped_instr:  # Skip empty instructions
-                converted = convert_basic_to_python(stripped_instr, line_number, original_line)
-                if converted:
-                    result.append(converted)
-        # Join with a single newline between instructions
-        return "\n".join(result)
+        return "\n".join(convert_basic_to_python(instr.strip(), line_number, original_line) for instr in instructions if instr.strip())
     
     # Convert CLS
     if basic_line.upper() == "CLS":
@@ -81,15 +74,21 @@ def convert_basic_to_python(basic_line, line_number=None, original_line=None):
     # Convert INPUT with string variables (ending with $)
     elif basic_line.upper().startswith("INPUT"):
         if MODEDEBUG:
-            print(f"\nProcessing INPUT line: '{basic_line}'")  # Debug log - added quotes
+            print(f"\nProcessing INPUT line: '{basic_line}'")
         
-        # Special handling for line 70 (to avoid any issues)
-        if line_number == "70" and basic_line.startswith('INPUT"What is your age'):
+        # Special handling for line 70
+        if line_number == "70":
+            if MODEDEBUG:
+                print(f"Special handling for line 70: {basic_line}")
             python_code = "ageN = int(input(\"What is your age : \"))"
-            return f"# {line_number} {basic_line}\n{python_code}"
+            if python_code:
+                comment = f"# {line_number} {basic_line}"
+                return f"{comment}\n{python_code}"
         
         # Case 1: INPUT"prompt",var (without space after INPUT)
         if '"' in basic_line and (',' in basic_line or ';' in basic_line):
+            if MODEDEBUG:
+                print("Processing INPUT with prompt and variable")
             # Find the position of the first quote
             quote_start = basic_line.find('"')
             if quote_start != -1:
@@ -165,7 +164,6 @@ def convert_basic_to_python(basic_line, line_number=None, original_line=None):
     if python_code:
         # Use the original line for the comment
         comment = f"# {line_number} {basic_line}" if line_number else f"# {basic_line}"
-        # Return comment and code without extra newline
         return f"{comment}\n{python_code}"
     return ""
 
@@ -184,11 +182,16 @@ def process_basic_file(file_path):
                     print(f"{i}: {line}")
                 print()
         
-        # Convert BASIC to Python
+        # Convert BASIC to Python Header
         python_code = [f"# Converted from {file_path} using Basic2Python.py v{VERSION}.\n\n"]
+        
+        # Imports required for conversions in python produced code
         python_code.append("# Required for CLS equivalent\nimport os\n\n")
-        # Add the cls function definition
+        
+        # Header: Utility functions for BASIC -> Python conversion
         python_code.append("# Utility functions for BASIC -> Python conversion\n")
+        
+        # Add the cls function definition
         python_code.append("def cls():\n    os.system('cls' if os.name == 'nt' else 'clear')\n\n")
         
         for i, original_line in enumerate(original_lines, 1):
@@ -208,16 +211,25 @@ def process_basic_file(file_path):
                 print(f"Extracted line number: {line_number}")
                 print(f"Extracted basic line: {basic_line}")
             
+            # Convert the line            
             converted_line = convert_basic_to_python(basic_line, line_number, original_line)
             
+            #Conversion successfull ?
             if converted_line:
-                # Append converted code with newline
-                python_code.append(converted_line + "\n")
+                python_code.append(converted_line)
+                if not converted_line.endswith('\n'):
+                    python_code.append('\n')
+            else:
+                if MODEDEBUG:
+                    print(f"Error while processing line {i}: {original_line}")
+                    print(f"Original line: {original_line}")
+                    print(f"Converted line: {converted_line}")
                 
         # Create the Python output file
         with open(output_file, 'w', encoding='utf-8') as file:
             file.writelines(python_code)
-            
+
+        #Ending summary
         print(f"Conversion completed. Result saved in: {output_file}")
         print("Content of the generated file:")
         print("-" * 40)
