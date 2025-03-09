@@ -1,7 +1,9 @@
-# Converted from ProgramsToConvert\FirstProgram\01-SourceProgram.bas using Basic2Python.py V0.0.1
-
 # Required for CLS equivalent
 import os
+
+# Utility functions for BASIC -> Python conversion
+def cls():
+    os.system('cls' if os.name == 'nt' else 'clear')
 
 # 5 CLS
 os.system('cls' if os.name == 'nt' else 'clear')
